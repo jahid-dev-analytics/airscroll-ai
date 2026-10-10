@@ -1,4 +1,4 @@
-"""Safety gate between recognized gestures and Instagram, plus settings handling."""
+"""Safety gate between recognized gestures and the social site, plus settings handling."""
 import pytest
 
 from airscroll.app import AirScrollApp
@@ -17,12 +17,13 @@ class FakeBridge:
         if not self.connected:
             return False, "browser extension not connected"
         if not self.focused:
-            return False, "Instagram is not the active tab"
+            return False, "no supported site is the active tab"
         self.sent.append(action)
         return True, "sent"
 
     def state(self):
-        return {"connected": self.connected, "instagram": self.focused, "page": "reels", "version": "t"}
+        return {"connected": self.connected, "active": self.focused, "site": "YouTube",
+                "page": "short videos", "version": "t"}
 
 
 @pytest.fixture

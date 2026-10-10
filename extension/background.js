@@ -1,6 +1,6 @@
 // AirScroll AI Bridge: background service worker.
-// Keeps a WebSocket to the local app, reports whether Instagram is the active tab
-// of the focused browser window, and forwards actions to the Instagram tab.
+// Keeps a WebSocket to the local app, reports whether a supported social site is the
+// active tab of the focused browser window, and forwards actions to that tab.
 "use strict";
 
 const SERVER_URL = "ws://127.0.0.1:8765/ext"; // change the port here if you run the app with --port
@@ -60,33 +60,44 @@ function setBadge(connected) {
 }
 
 // ---------------------------------------------------------------- focus
-function isInstagram(url) {
-  try { return new URL(url).hostname === "www.instagram.com"; } catch { return false; }
-}
+// Keep in sync with host_permissions in manifest.json and SITES in content.js.
+const SITES = [
+  { id: "instagram", name: "Instagram", host: /(^|\.)instagram\.com$/, shorts: /^\/reels?\// },
+  { id: "facebook", name: "Facebook", host: /(^|\.)facebook\.com$/, shorts: /^\/(reel|watch|stories)\b/ },
+  { id: "youtube", name: "YouTube", host: /(^|\.)youtube\.com$/, shorts: /^\/shorts\// },
+  { id: "tiktok", name: "TikTok", host: /(^|\.)tiktok\.com$/, shorts: /^\/(foryou|following|explore)?\/?$|\/video\// },
+  { id: "linkedin", name: "LinkedIn", host: /(^|\.)linkedin\.com$/, shorts: null },
+];
 
-function pageKind(url) {
+function siteOf(url) {
   try {
-    const p = new URL(url).pathname;
-    if (/^\/reels?\//.test(p)) return "reels";
-    if (p === "/") return "feed";
-    return "other";
-  } catch { return "other"; }
+    const u = new URL(url);
+    if (u.protocol !== "https:") return null;
+    const site = SITES.find((s) => s.host.test(u.hostname));
+    if (!site) return null;
+    return { ...site, page: site.shorts && site.shorts.test(u.pathname) ? "short videos" : "feed" };
+  } catch { return null; }
 }
 
-// The Instagram tab only counts when it is the active tab of the window that
-// currently has OS focus. tab.url is only visible to us for instagram.com
-// (host permission), so other sites always read as "not Instagram".
-async function activeInstagramTab() {
+// A site only counts when it is the active tab of the window that currently has
+// OS focus. tab.url is only visible to us for the supported sites (host
+// permissions), so every other site always reads as "not supported".
+async function activeSiteTab() {
   const win = await chrome.windows.getLastFocused().catch(() => null);
   if (!win || !win.focused) return null;
   const [tab] = await chrome.tabs.query({ active: true, windowId: win.id });
-  if (!tab || !isInstagram(tab.url)) return null;
-  return tab;
+  const site = tab && siteOf(tab.url);
+  return site ? { tab, site } : null;
 }
 
 async function reportFocus() {
-  const tab = await activeInstagramTab();
-  send({ type: "focus", instagram: !!tab, page: tab ? pageKind(tab.url) : null });
+  const hit = await activeSiteTab();
+  send({
+    type: "focus",
+    active: !!hit,
+    site: hit ? hit.site.name : null,
+    page: hit ? hit.site.page : null,
+  });
 }
 
 chrome.tabs.onActivated.addListener(reportFocus);
@@ -96,8 +107,9 @@ chrome.windows.onFocusChanged.addListener(reportFocus);
 // --------------------------------------------------------------- actions
 async function runAction(msg) {
   const reply = (ok, detail) => send({ type: "result", id: msg.id, ok, detail });
-  const tab = await activeInstagramTab(); // re-check the real state right now
-  if (!tab) return reply(false, "Instagram is not the active tab in the focused window");
+  const hit = await activeSiteTab(); // re-check the real state right now
+  if (!hit) return reply(false, "no supported site is the active tab in the focused window");
+  const tab = hit.tab;
   const payload = { type: "airscroll", action: msg.action };
   try {
     const res = await chrome.tabs.sendMessage(tab.id, payload);
@@ -109,7 +121,7 @@ async function runAction(msg) {
       const res = await chrome.tabs.sendMessage(tab.id, payload);
       return reply(!!res?.ok, res?.detail || "");
     } catch (e2) {
-      return reply(false, `page not ready (${e2.message || e2}); reload the Instagram tab`);
+      return reply(false, `page not ready (${e2.message || e2}); reload the ${hit.site.name} tab`);
     }
   }
 }

@@ -55,8 +55,8 @@ class Action(str, Enum):
 
 
 ACTION_LABELS = {
-    Action.NEXT: "Next reel",
-    Action.PREVIOUS: "Previous reel",
+    Action.NEXT: "Next",
+    Action.PREVIOUS: "Previous",
     Action.LIKE: "Like",
     Action.TOGGLE_PLAY: "Pause / play",
     Action.TOGGLE_CONTROL: "Toggle gesture control",

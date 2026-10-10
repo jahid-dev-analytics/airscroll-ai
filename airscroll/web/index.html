@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AirScroll AI</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✋</text></svg>">
-<link rel="stylesheet" href="/static/app.css?v=1.1.0">
+<link rel="stylesheet" href="/static/app.css?v=1.2.0">
 </head>
 <body>
 <header class="top">
@@ -13,7 +13,7 @@
     <div class="logo">✋</div>
     <div>
       <h1>AirScroll AI</h1>
-      <p class="sub">Hand gesture controller for Instagram Reels</p>
+      <p class="sub">Hand gesture controller for Instagram, Facebook, YouTube, TikTok &amp; LinkedIn</p>
     </div>
   </div>
   <div class="top-right">
@@ -64,7 +64,7 @@
       <div class="chip" id="chipHand"><span class="led"></span>Hand</div>
       <div class="chip" id="chipCtrl"><span class="led"></span>Control</div>
       <div class="chip" id="chipExt"><span class="led"></span>Extension</div>
-      <div class="chip" id="chipIg"><span class="led"></span>Instagram in front</div>
+      <div class="chip" id="chipIg"><span class="led"></span><span id="siteChipLabel">Site in front</span></div>
     </div>
 
     <div class="control-box">
@@ -84,8 +84,8 @@
   <section class="card gestures-card">
     <h2>Gestures</h2>
     <ul class="gestures">
-      <li data-pose="one_finger"><span class="g-icon">☝️</span><div><b>One finger up</b><small>Scroll up: next reel / next post</small></div></li>
-      <li data-pose="peace"><span class="g-icon">✌️</span><div><b>Two fingers up</b><small>Scroll down: previous reel / post</small></div></li>
+      <li data-pose="one_finger"><span class="g-icon">☝️</span><div><b>One finger up</b><small>Scroll up: next video / next post</small></div></li>
+      <li data-pose="peace"><span class="g-icon">✌️</span><div><b>Two fingers up</b><small>Scroll down: previous video / post</small></div></li>
       <li data-pose="fist"><span class="g-icon">✊</span><div><b>Closed fist</b><small>Pause the video (fist again to resume)</small></div></li>
       <li data-pose="thumb_up"><span class="g-icon">👍</span><div><b>Thumb up</b><small>Like (never unlikes; long cooldown)</small></div></li>
       <li data-pose="open_palm"><span class="g-icon">✋⏱</span><div><b>Open palm held still</b><small>Turn gesture control on</small></div></li>
@@ -160,6 +160,6 @@
     <ol id="log" class="log"></ol>
   </section>
 </main>
-<script src="/static/app.js?v=1.1.0"></script>
+<script src="/static/app.js?v=1.2.0"></script>
 </body>
 </html>

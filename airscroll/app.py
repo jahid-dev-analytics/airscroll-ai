@@ -155,8 +155,8 @@ class AirScrollApp:
             status, tone = f"Gesture recognized: {self._last_recognized[1]}", "ok"
         elif not self.control_enabled:
             status, tone = "Hand detected · control disabled", "warn"
-        elif not bridge["instagram"]:
-            status, tone = "Hand detected · Instagram not in front", "warn"
+        elif not bridge["active"]:
+            status, tone = "Hand detected · no supported site in front", "warn"
         else:
             status, tone = "Hand detected · ready", "ok"
 

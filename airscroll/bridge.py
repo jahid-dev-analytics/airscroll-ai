@@ -1,8 +1,9 @@
 """WebSocket link to the AirScroll browser extension.
 
-The extension reports whether Instagram is the active tab of the focused browser
-window, and executes actions inside the Instagram page. This side only *sends*
-actions when that report says Instagram is in front; the extension re-checks the
+The extension reports whether a supported social site (Instagram, Facebook,
+YouTube, TikTok, LinkedIn) is the active tab of the focused browser window, and
+executes actions inside that page. This side only *sends* actions when that report
+says a supported site is in front; the extension re-checks the
 real tab state again before acting, so a stale report can never misfire.
 """
 from __future__ import annotations
@@ -26,7 +27,8 @@ class ExtensionBridge:
         self._on_emergency = on_emergency
         self._ws: Optional[web.WebSocketResponse] = None
         self.loop: Optional[asyncio.AbstractEventLoop] = None
-        self.instagram_focused = False
+        self.site_active = False
+        self.site: Optional[str] = None
         self.page: Optional[str] = None
         self.version: Optional[str] = None
         self._ids = itertools.count(1)
@@ -39,7 +41,8 @@ class ExtensionBridge:
     def state(self) -> dict:
         return {
             "connected": self.connected,
-            "instagram": self.connected and self.instagram_focused,
+            "active": self.connected and self.site_active,
+            "site": self.site if self.connected else None,
             "page": self.page if self.connected else None,
             "version": self.version,
         }
@@ -67,7 +70,8 @@ class ExtensionBridge:
         finally:
             if self._ws is ws:
                 self._ws = None
-                self.instagram_focused = False
+                self.site_active = False
+                self.site = None
                 self.page = None
                 self._pending.clear()
                 self._on_log("Browser extension disconnected", "warn")
@@ -78,18 +82,20 @@ class ExtensionBridge:
         if kind == "hello":
             self.version = str(data.get("version", "?"))
         elif kind == "focus":
-            was = self.instagram_focused
-            self.instagram_focused = bool(data.get("instagram"))
+            was = (self.site_active, self.site)
+            # "instagram" is what extension v1.0/1.1 sent before multi-site support
+            self.site_active = bool(data.get("active", data.get("instagram")))
+            self.site = data.get("site") or ("Instagram" if data.get("instagram") else None)
             self.page = data.get("page")
-            if was != self.instagram_focused:
-                log.info("Instagram focused: %s (%s)", self.instagram_focused, self.page)
+            if was != (self.site_active, self.site):
+                log.info("Site in front: %s (%s)", self.site if self.site_active else "none", self.page)
         elif kind == "result":
             action = self._pending.pop(int(data.get("id", 0)), "action")
             detail = str(data.get("detail", ""))[:160]
             if data.get("ok"):
-                self._on_log(f"Instagram: {detail or action}", "ok")
+                self._on_log(f"{self.site or 'Browser'}: {detail or action}", "ok")
             else:
-                self._on_log(f"Instagram could not {action}: {detail}", "warn")
+                self._on_log(f"{self.site or 'Browser'} could not {action}: {detail}", "warn")
         elif kind == "emergency":
             self._on_log("Emergency stop pressed in browser (Alt+Shift+S)", "error")
             self._on_emergency()
@@ -100,8 +106,8 @@ class ExtensionBridge:
         ws, loop = self._ws, self.loop
         if ws is None or ws.closed or loop is None:
             return False, "browser extension not connected"
-        if not self.instagram_focused:
-            return False, "Instagram is not the active tab"
+        if not self.site_active:
+            return False, "no supported site is the active tab"
         msg_id = next(self._ids)
         self._pending[msg_id] = action
         if len(self._pending) > 50:                       # drop results that never came back

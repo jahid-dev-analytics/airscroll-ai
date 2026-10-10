@@ -1,47 +1,60 @@
-# AirScroll AI: Hand Gesture Instagram Controller
+# AirScroll AI: Hand Gesture Social Media Controller
 
-Control Instagram Reels (and the home feed) in your desktop browser with hand gestures in
-front of your laptop webcam. Hand tracking runs **entirely on your computer**, and webcam
-frames are never recorded, stored or uploaded.
+Scroll, like and pause videos on **Instagram, Facebook, YouTube, TikTok and LinkedIn** in your
+desktop browser with hand gestures in front of your laptop webcam. Hand tracking runs
+**entirely on your computer**, and webcam frames are never recorded, stored or uploaded.
 
 | Gesture | Action |
 |---|---|
-| ☝️ **One finger** up (index) | Scroll up: next reel / next post |
-| ✌️ **Two fingers** up (index + middle) | Scroll down: previous reel / previous post |
+| ☝️ **One finger** up (index) | Scroll up: next video / next post |
+| ✌️ **Two fingers** up (index + middle) | Scroll down: previous video / previous post |
 | ✊ Closed **fist** | Pause the video (show a fist again to resume) |
 | 👍 Thumb up | Like (only ever *likes*, never unlikes; 3 s like cooldown) |
 | ✋ Open palm held **still** for 2 s | Turn gesture control on |
 
 Hold a gesture until the ring on the dashboard fills (0.4 s by default). Each gesture fires
-**once** per showing: to go two reels forward, show one finger, drop or change your hand,
-then show one finger again. Open-palm flicks up/down are still available under
+**once** per showing: to go two videos forward, show one finger, drop or change your hand,
+then show one finger again. Open-palm flicks up/down are also available under
 *Settings → Advanced* but are off by default.
----|---|
-| ✋⬆ Open palm, quick flick **up** | Next reel / next post |
-| ✋⬇ Open palm, quick flick **down** | Previous reel / previous post |
-| 👍 Thumb up | Like (only ever *likes*, never unlikes; 3 s like cooldown) |
-| ✌️ Peace sign | Pause / resume the video in view |
-| ✊ Closed fist | Pauses all gestures while held (+0.6 s after); use it to reposition your hand |
-| ✋⏱ Open palm held **still** for 2 s | Turn gesture control on / off |
+
+### Supported sites
+
+| Site | Short videos | Feed | How "next" works |
+|---|---|---|---|
+| Instagram | Reels (`/reels/`) | Home feed | Scrolls the reels list / jumps post to post |
+| YouTube | Shorts (`/shorts/`) | Home, search | Shorts' own ▲▼ buttons when visible, otherwise scrolls |
+| TikTok | For You, Following, videos | n/a | TikTok's own arrow buttons when present, otherwise scrolls |
+| Facebook | Reels, Watch | News feed | Facebook's "Next card" buttons when present, otherwise scrolls |
+| LinkedIn | n/a | Feed | Jumps post to post |
+
+Pause works on any page with a video in view. Like looks for the site's own Like button
+(a "Like" label, or a pressed/unpressed Like toggle) and never clicks a Dislike, comment
+Like or like count. See [Known limitations](#10-known-limitations-read-these) for what has
+been verified on each live site.
 
 ---
 
 ## 1. How it works
 
 ```
- Webcam ─► OpenCV ─► MediaPipe HandLandmarker ─► Gesture engine ─► Safety gate ─► WebSocket ─► Browser extension ─► Instagram tab
-           (capture)   (21 landmarks, local)      (poses, swipes,   (control on?   (127.0.0.1   (re-checks Instagram is
-                                                   cooldowns)        Instagram       only)        the active tab, then uses
-                                                                     in front?)                   the page's own scroll/buttons)
+ Webcam ─► OpenCV ─► MediaPipe HandLandmarker ─► Gesture engine ─► Safety gate ─► WebSocket ─► Browser extension ─► Social site tab
+           (capture)   (21 landmarks, local)      (poses, holds,    (control on?   (127.0.0.1   (re-checks a supported site
+                                                   cooldowns)        supported       only)        is the active tab, then uses
+                                                                     site in front?)              the page's own buttons/scroll)
             └──────────── Python app (python run.py) ── serves the dashboard at http://127.0.0.1:8765 ───┘
 ```
 
 **Why two parts?** A desktop program that fakes key presses (PyAutoGUI) sends them to
 *whatever* window has focus and cannot tell which browser tab is open. A small browser
-extension *can* check that Instagram is the active tab of the focused window, and it can
-scroll and click inside the page reliably. So the Python app does the vision and the
-extension does the Instagram part. Nothing else is involved: no cloud, no Instagram API,
-no login automation. You log in to Instagram yourself, as usual.
+extension *can* check that a supported site is the active tab of the focused window, and it
+can scroll and click inside the page reliably. So the Python app does the vision and the
+extension does the website part. Nothing else is involved: no cloud, no site APIs, no login
+automation. You log in to each site yourself, as usual.
+
+**Adding or fixing a site:** each site is a small adapter at the top of `extension/content.js`
+(its next/previous buttons, short-video URL and post containers), plus its address in
+`extension/manifest.json` and `extension/background.js`. The scrolling, liking and pausing
+logic is shared.
 
 ### Project structure
 
@@ -55,7 +68,7 @@ airscroll-ai/
 ├── airscroll/
 │   ├── __main__.py         entry point, logging, CLI flags
 │   ├── gestures.py         pose classification from landmarks (pure Python)
-│   ├── engine.py           stabilisation, swipes, cooldowns, neutral re-arm, hold-to-toggle
+│   ├── engine.py           stabilisation, hold-to-fire, cooldowns, optional flicks, hold-to-toggle
 │   ├── tracker.py          MediaPipe Tasks HandLandmarker wrapper + model download
 │   ├── camera.py           webcam thread, preview rendering, cleanup
 │   ├── bridge.py           WebSocket link to the browser extension
@@ -64,9 +77,9 @@ airscroll-ai/
 │   ├── server.py           local web server: dashboard, MJPEG preview, sockets
 │   └── web/                dashboard (index.html, app.css, app.js)
 ├── extension/              Chrome / Edge extension (Manifest V3)
-│   ├── manifest.json
+│   ├── manifest.json       supported sites
 │   ├── background.js       connection, active-tab check, emergency shortcut
-│   └── content.js          scroll / like / pause inside instagram.com
+│   └── content.js          per-site adapters + scroll / like / pause
 ├── models/                 hand_landmarker.task (downloaded automatically)
 ├── logs/                   airscroll.log (no images, no landmarks)
 └── tests/                  pytest suite + browser harness for content.js
@@ -109,35 +122,42 @@ Options: `--no-browser` (don't open the dashboard), `--verbose` (debug logs),
 `--port N` (if you change the port, also edit `SERVER_URL` at the top of `extension/background.js`
 and reload the extension).
 
+### Updating after a change
+
+| What changed | What to do |
+|---|---|
+| Settings sliders | Nothing: applied instantly and saved |
+| `airscroll/web/` (dashboard) | Press F5 on the dashboard |
+| `airscroll/*.py` | Close the console window and run `run.bat` again |
+| `extension/` | `chrome://extensions` → ↻ on *AirScroll AI Bridge*, then F5 on the site's tab |
+
 ## 4. Step-by-step usage
 
-1. Open **instagram.com** in Chrome/Edge and **log in normally**. Go to **Reels**
-   (`instagram.com/reels/`) or stay on the home feed.
-2. Put the AirScroll dashboard in a **separate window** (drag its tab out) beside Instagram.
-   On a small screen you can minimise it once everything is green.
+1. Open a supported site in Chrome/Edge and **log in normally**, e.g. `instagram.com/reels/`,
+   `youtube.com/shorts`, `tiktok.com`, Facebook Reels or your LinkedIn feed.
+2. Put the AirScroll dashboard in a **separate window** (or a split-view pane) beside it.
 3. In the dashboard click **Start Camera**. The camera turns on only now, and the red **CAMERA LIVE**
    badge shows whenever it is on.
 4. Check the status chips: **Camera**, **Hand** and **Extension** should be green.
 5. Click **Enable Gesture Control**, or hold an open palm still for 2 s and watch the ring fill.
-6. **Click once inside the Instagram window.** Actions only go through when Instagram is the
-   active tab of the focused window (the *Instagram in front* chip turns green). This is a
-   safety feature: gestures can never act on another site or app.
-7. Gesture! A small pink toast in the Instagram page confirms each action, and the dashboard's
+6. **Click once inside the site's page.** Actions only go through when a supported site is the
+   active tab of the focused window (the chip then reads e.g. *YouTube in front*). This is a
+   safety feature: gestures can never act on another site or app. In split view, the pane you
+   clicked last is the active one.
+7. Gesture! A small pink toast on the page confirms each action, and the dashboard's
    **Activity** list shows what was recognized, sent, skipped and why.
 
-**Stopping:** **Stop Camera** releases the webcam immediately. **EMERGENCY STOP** (or **Esc** in
-the dashboard, or **Alt+Shift+S** anywhere in Chrome/Edge) disables control *and* turns the
-camera off. **Quit app** (or closing the console) shuts everything down and releases the camera.
+**Stopping:** **Disable** turns gestures off. **Stop Camera** releases the webcam immediately.
+**EMERGENCY STOP** (or **Esc** in the dashboard, or **Alt+Shift+S** anywhere in Chrome/Edge)
+disables control *and* turns the camera off. **Quit app** (or closing the console) shuts
+everything down and releases the camera.
 
 ### Technique that works
 
-* Sit 50–80 cm from the camera with your hand roughly at chest-to-face height, in good front light.
-* **Swipe:** show an open palm, **hold still ~0.3 s** (the *Swipe armed* chip turns green), then
-  make a **quick** flick up or down of about a hand's length. Slow movements never scroll.
-* **Return** your hand **slowly**, or close it into a **fist** while moving it back. A return flick
-  within 1 s is ignored anyway.
-* Thumb up / peace: show the sign clearly for a moment. Each fires **once**; to repeat it,
-  change pose (or drop your hand) and show it again.
+* Sit 50–80 cm from the camera with your hand roughly at chest-to-face height, in good **front**
+  light. A bright window behind you makes detection much worse.
+* Show the gesture clearly, palm towards the camera, and hold it until the ring fills.
+* To repeat a gesture, relax or drop your hand first, then show it again.
 
 ## 5. Gesture calibration
 
@@ -145,17 +165,17 @@ Open the **Settings** card (changes apply instantly and are saved in `settings.j
 
 | Problem | Adjust |
 |---|---|
-| Flicks are ignored | Raise **Swipe sensitivity** (the hint shows the flick distance in palm-heights), or lower **Neutral pause** |
-| Scrolls happen by accident | Lower **Swipe sensitivity**, raise **Neutral pause** to 0.5 s, raise **Delay between actions** |
-| Two scrolls from one movement | Raise **Delay between actions** (default 0.8 s) |
-| Returning the hand goes back a reel | Raise **Ignore return stroke for** (Advanced), or return with a fist |
+| Gestures fire by accident | Raise **Hold a gesture for** (e.g. 0.6 s), raise **Delay between actions** |
+| Gestures feel slow | Lower **Hold a gesture for** (e.g. 0.25 s) |
+| Two actions from one gesture | Raise **Delay between actions** (default 0.8 s) |
 | Pose flickers / wrong pose shown | Raise **Frames to confirm a pose** (Advanced), improve lighting |
 | Hand not detected | Lower **Hand detection confidence** (Advanced; applies on next camera start) |
 | Wrong camera (e.g. IR camera) | Change **Camera number** to 1 or 2 (Advanced), then Stop/Start camera |
+| Want open-palm flicks too | Turn on **Also allow open-palm flicks** (Advanced) and tune **Flick sensitivity** |
 
 The pose under your hand is shown live in the preview and in the status card, so you can see
 exactly what the app reads before it acts. Test with control **disabled** first: the Activity
-list says *"recognized, ignored (control disabled)"* without touching Instagram.
+list says *"recognized, ignored (control disabled)"* without touching any site.
 
 ## 6. Troubleshooting
 
@@ -163,11 +183,12 @@ list says *"recognized, ignored (control disabled)"* without touching Instagram.
 |---|---|
 | **"No camera available at index 0"** | Turn on camera access for desktop apps (step 3 above); close Teams/Zoom/Camera app; try Camera number 1 |
 | Camera opens but image is black | Another app holds the camera, or a privacy shutter/F-key camera switch is on |
-| **Extension** chip red | App not running, or extension not loaded/enabled. Open `chrome://extensions` and click the reload icon on *AirScroll AI Bridge*. It retries every few seconds. |
-| **Instagram in front** chip stays amber | Click inside the Instagram tab. The dashboard's own window being focused counts as "not Instagram". |
-| "page not ready… reload the Instagram tab" | The tab was open before the extension was installed: press F5 on Instagram |
-| "no Like button found" | Your Instagram language isn't English. Add your language's label to `LIKE_LABELS` / `UNLIKE_LABELS` at the top of `extension/content.js`, then reload the extension |
-| "page did not scroll" | You're at the end of the list, or on a single-reel page (`/reel/…` opened from a post). Open `instagram.com/reels/` |
+| **Extension** chip red | App not running, or extension not loaded/enabled. Open `chrome://extensions` and click ↻ on *AirScroll AI Bridge*. It retries every few seconds. |
+| **Site in front** chip stays amber | Click inside the site's tab. The dashboard's own window being focused counts as "no site". |
+| "page not ready… reload the … tab" | The tab was open before the extension was installed or updated: press F5 on it |
+| "no Like button found" | The site's language isn't English, or the site changed its layout. Add your language's word to `LIKE_WORDS` at the top of `extension/content.js`, then reload the extension |
+| "clicked Like but … did not confirm it" | Not logged in to that site, or the site changed its Like button |
+| "page did not scroll" | End of the list, or a single-video page. Open the site's short-video feed (e.g. `instagram.com/reels/`, `youtube.com/shorts`) |
 | Port 8765 already in use | AirScroll is already running: open http://127.0.0.1:8765, or close the other copy |
 | Low FPS / laggy | Close other heavy apps; plug in the laptop (power-saving throttles the CPU) |
 | `pip install mediapipe` fails | Use Python 3.11–3.13 (64-bit). MediaPipe has no builds for 32-bit Python or brand-new Python versions. |
@@ -185,11 +206,10 @@ Logs: `logs/airscroll.log` (rotating, text only, with no images or hand data). R
 * The server listens on **127.0.0.1 only** (not reachable from your network). Other websites
   are refused access to the dashboard socket and the camera preview, and only a browser
   extension may connect to the extension socket.
-* No Instagram actions happen while control is disabled, while your fist is closed, or when
-  Instagram isn't the active tab of the focused window. The extension re-checks the last
-  condition itself just before every action.
-* The extension uses Instagram's normal page: no private APIs, no automation of login,
-  no requests to Instagram's servers beyond what clicking the page would do.
+* No site actions happen while control is disabled or when no supported site is the active tab
+  of the focused window. The extension re-checks that itself just before every action.
+* The extension only has access to the five supported sites, and uses their normal pages: no
+  private APIs, no automation of login, no requests beyond what clicking the page would do.
 
 ## 8. macOS and Linux
 
@@ -208,31 +228,41 @@ The Python code is cross-platform. Use `./run.sh` (it creates `.venv` on first r
 .venv\Scripts\python.exe -m pytest -q
 ```
 
-80 automated tests cover pose classification (tilt, distance, jitter), the gesture engine
-(single scroll per movement, raise-into-view doesn't scroll, return-stroke lockout, cooldowns,
-like cooldown, latching, fist pause, hold-to-toggle, hand leaving), the safety gate (disabled,
-not focused, extension missing, emergency stop), settings clamping, the server's origin checks
-and a full fake-extension round trip, plus a smoke test of the real MediaPipe model.
+100 automated tests cover pose classification (tilt, distance, jitter), the gesture engine
+(hold-to-fire, once per showing, cooldowns, like cooldown, hold-to-toggle, hand drop-outs,
+and the optional flicks), the safety gate (disabled, no site in front, extension missing,
+emergency stop), settings clamping, the server's origin checks and a full fake-extension round
+trip, plus a smoke test of the real MediaPipe model.
 
-**Content-script harness:** `python tests/ext_harness/serve.py`, then open
-`http://127.0.0.1:8799/reels/` and run `await run("next")`, `run("like")`, etc. in DevTools.
-It loads the real `extension/content.js` against a mock page with the same structure.
+**Content-script harness:** `python tests/ext_harness/serve.py`, then open one of the mock
+pages and run `await run("next")`, `run("like")`, etc. in DevTools. Each loads the real
+`extension/content.js`:
+
+* `http://127.0.0.1:8799/reels/` and `/`: Instagram-style reels and feed
+* `http://127.0.0.1:8799/shorts/?site=youtube`: YouTube-style Shorts (▲▼ buttons, pressed-state Like, Dislike)
+* `http://127.0.0.1:8799/feed/?site=linkedin`: LinkedIn-style feed (React Like, comment likes)
 
 ## 10. Known limitations (read these)
 
-* **Instagram can change its website at any time.** Scrolling uses generic page scrolling, which is
-  fairly robust. Liking depends on Instagram's heart icon label (`aria-label="Like"`/`"Unlike"`)
-  and **breaks if Instagram renames it or your UI isn't in English** (see Troubleshooting).
-* **Not verified against live Instagram by the developer.** The extension logic was tested in
-  Chrome against a mock page that mimics Instagram's structure, but not on a logged-in
-  instagram.com. Your first session is the real test. Watch the Activity list, where each
-  action reports success or the reason it failed.
-* **Pause/resume** controls the HTML video directly. Instagram's own play/pause icon may not
+* **What has been verified on the real sites** (as of v1.2):
+
+  | Site | Next / previous | Pause | Like |
+  |---|---|---|---|
+  | Instagram | ✅ live (Reels) | mock only | mock only |
+  | YouTube | ✅ live (Shorts, scrolling path) | ✅ live | label checked live, click untested (needs login) |
+  | TikTok, Facebook, LinkedIn | mock / not yet | not yet | not yet |
+
+  Everything else was tested against mock pages that copy each site's structure. Your first
+  session on each site is the real test. Watch the Activity list, where each action reports
+  success or the reason it failed.
+* **Sites change their websites often.** Scrolling is generic and fairly robust. Next/previous
+  buttons and Like detection depend on each site's button labels and **can break when a site
+  renames them or your UI isn't in English** (see Troubleshooting). Fixes go in the site's
+  adapter in `extension/content.js`.
+* **Pause/resume** controls the HTML video directly. The site's own play/pause icon may not
   update to match, and if the browser blocks playback you may need to click the video once.
 * **Like** only ever *likes*. Unliking by gesture is intentionally not supported.
 * Works in **Chrome / Edge (Chromium 116+)**. Firefox and Safari are not supported (the extension uses Chrome APIs).
-* The dashboard must not be the focused window when you gesture (by design). Click into Instagram after using the dashboard.
+* The dashboard must not be the focused window when you gesture (by design). Click into the site after using the dashboard.
 * One hand at a time. Very dim light, strong backlight, gloves or a hand partly out of frame reduce accuracy.
-* Gesture thresholds were tuned with synthetic hand data and unit tests. Expect to adjust
-  sensitivity once for your camera, distance and lighting.
-* The Instagram mobile app and the Instagram desktop app from the Microsoft Store are not supported; use the website.
+* Mobile apps and desktop store apps (Instagram, TikTok, etc.) are not supported; use the websites.

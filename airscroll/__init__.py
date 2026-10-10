@@ -1,2 +1,2 @@
-"""AirScroll AI: control Instagram Reels with hand gestures."""
-__version__ = "1.0.0"
+"""AirScroll AI: control Instagram, Facebook, YouTube, TikTok and LinkedIn with hand gestures."""
+__version__ = "1.2.0"

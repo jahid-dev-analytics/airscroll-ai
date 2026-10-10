@@ -1,0 +1,43 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Mock Shorts</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0f0f0f; color: #fff; font-family: system-ui; overflow: hidden; }
+  #shorts-inner-container { height: 100vh; overflow-y: scroll; scroll-snap-type: y mandatory; }
+  .reel { height: 100vh; scroll-snap-align: start; display: flex; gap: 12px; align-items: center; justify-content: center; }
+  video { height: 90%; width: 320px; background: #222; border-radius: 12px; }
+  .bar { display: flex; flex-direction: column; gap: 16px; }
+  .nav { position: fixed; right: 20px; top: 40%; display: flex; flex-direction: column; gap: 10px; }
+  button { padding: 8px; }
+</style>
+<script src="/shim.js"></script>
+</head><body>
+<div id="shorts-inner-container">
+  <script>
+    for (let i = 1; i <= 4; i++) document.write(`
+      <div class="reel" data-reel="${i}">
+        <video playsinline></video>
+        <div class="bar">
+          <button aria-label="like this video along with ${i * 10} other people" aria-pressed="false">👍 ${i * 10}</button>
+          <button aria-label="Dislike this video" aria-pressed="false">👎</button>
+          <a href="#c"><button aria-label="View ${i} comments">💬</button></a>
+          <span>#${i}</span>
+        </div>
+      </div>`);
+  </script>
+</div>
+<div class="nav">
+  <div id="navigation-button-up"><button aria-label="Previous video">▲</button></div>
+  <div id="navigation-button-down"><button aria-label="Next video">▼</button></div>
+</div>
+<script>
+  // Like YouTube: the nav buttons move the shorts list one item and update the URL.
+  const box = document.getElementById("shorts-inner-container");
+  const go = (d) => {
+    box.scrollBy({ top: d * box.clientHeight, behavior: "instant" });   // instant: works in a hidden test tab
+    history.replaceState(null, "", `/shorts/?site=youtube&i=${Math.round(box.scrollTop / box.clientHeight) + 1}`);
+  };
+  document.querySelector("#navigation-button-down button").onclick = () => go(1);
+  document.querySelector("#navigation-button-up button").onclick = () => go(-1);
+</script>
+<script src="/content.js"></script>
+</body></html>

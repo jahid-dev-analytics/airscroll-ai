@@ -81,7 +81,8 @@ function render(s) {
   chip("chipHand", eng.hand ? "ok" : "");
   chip("chipCtrl", s.control_enabled ? "ok" : "warn");
   chip("chipExt", ext.connected ? "ok" : "error");
-  chip("chipIg", ext.instagram ? "ok" : ext.connected ? "warn" : "");
+  chip("chipIg", ext.active ? "ok" : ext.connected ? "warn" : "");
+  $("siteChipLabel").textContent = ext.active ? `${ext.site} in front` : "Site in front";
 
   const ctrl = $("ctrlState");
   ctrl.textContent = s.control_enabled ? "ENABLED" : "DISABLED";
@@ -91,9 +92,9 @@ function render(s) {
 
   $("extHint").innerHTML = !ext.connected
     ? "<b>Browser extension not connected.</b> Load the <b>extension</b> folder in Chrome or Edge (see README), then keep this app running."
-    : !ext.instagram
-      ? "Extension connected. Click into your <b>Instagram</b> tab so it is the active tab of the focused window — actions are blocked otherwise."
-      : `Instagram is in front (${ext.page || "page"}). Gestures will act on it when control is enabled.`;
+    : !ext.active
+      ? "Extension connected. Click into an <b>Instagram, Facebook, YouTube, TikTok or LinkedIn</b> tab so it is the active tab of the focused window — actions are blocked otherwise."
+      : `<b>${ext.site}</b> is in front (${ext.page || "page"}). Gestures will act on it when control is enabled.`;
 
   // highlight current gesture in the list
   document.querySelectorAll(".gestures li").forEach((li) =>

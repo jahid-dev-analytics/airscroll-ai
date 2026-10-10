@@ -69,12 +69,13 @@ def test_extension_round_trip(client):
     async def go():
         ws = await c.ws_connect("/ext", headers={"Origin": "chrome-extension://abc"})
         await ws.send_json({"type": "hello", "version": "1.0.0"})
-        await ws.send_json({"type": "focus", "instagram": True, "page": "reels"})
+        await ws.send_json({"type": "focus", "active": True, "site": "TikTok", "page": "short videos"})
         for _ in range(50):
-            if app.bridge.instagram_focused:
+            if app.bridge.site_active:
                 break
             await asyncio.sleep(0.02)
-        assert app.bridge.state() == {"connected": True, "instagram": True, "page": "reels", "version": "1.0.0"}
+        assert app.bridge.state() == {"connected": True, "active": True, "site": "TikTok",
+                                      "page": "short videos", "version": "1.0.0"}
 
         app.set_control(True)
         sent, _ = app.bridge.send_action("next")
@@ -90,11 +91,27 @@ def test_extension_round_trip(client):
             await asyncio.sleep(0.02)
         assert not app.control_enabled
         texts = [e["text"] for e in app.events]
-        assert "Instagram: Next reel" in texts
+        assert "TikTok: Next reel" in texts
         await ws.close()
         for _ in range(50):
             if not app.bridge.connected:
                 break
             await asyncio.sleep(0.02)
         assert not app.bridge.connected
+    loop.run_until_complete(go())
+
+
+def test_old_extension_focus_message_still_understood(client):
+    """Extension v1.0/1.1 sent {"instagram": true}; keep working until the user reloads it."""
+    c, loop, app = client
+
+    async def go():
+        ws = await c.ws_connect("/ext", headers={"Origin": "chrome-extension://abc"})
+        await ws.send_json({"type": "focus", "instagram": True, "page": "reels"})
+        for _ in range(50):
+            if app.bridge.site_active:
+                break
+            await asyncio.sleep(0.02)
+        assert app.bridge.state()["active"] and app.bridge.state()["site"] == "Instagram"
+        await ws.close()
     loop.run_until_complete(go())

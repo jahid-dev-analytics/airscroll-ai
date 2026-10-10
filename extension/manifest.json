@@ -1,15 +1,27 @@
 {
   "manifest_version": 3,
   "name": "AirScroll AI Bridge",
-  "version": "1.0.0",
-  "description": "Lets the local AirScroll AI app scroll, like and pause Instagram Reels in this browser. Talks only to 127.0.0.1.",
+  "version": "1.2.0",
+  "description": "Lets the local AirScroll AI app scroll, like and pause videos on Instagram, Facebook, YouTube, TikTok and LinkedIn. Talks only to 127.0.0.1.",
   "minimum_chrome_version": "116",
   "permissions": ["scripting", "alarms"],
-  "host_permissions": ["https://www.instagram.com/*"],
+  "host_permissions": [
+    "https://*.instagram.com/*",
+    "https://*.facebook.com/*",
+    "https://*.youtube.com/*",
+    "https://*.tiktok.com/*",
+    "https://*.linkedin.com/*"
+  ],
   "background": { "service_worker": "background.js" },
   "content_scripts": [
     {
-      "matches": ["https://www.instagram.com/*"],
+      "matches": [
+        "https://*.instagram.com/*",
+        "https://*.facebook.com/*",
+        "https://*.youtube.com/*",
+        "https://*.tiktok.com/*",
+        "https://*.linkedin.com/*"
+      ],
       "js": ["content.js"],
       "run_at": "document_idle"
     }
