@@ -1,0 +1,20 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Mock Feed</title>
+<style>
+  body { margin: 0; background: #fff; font-family: system-ui; }
+  article { width: 470px; margin: 0 auto 24px; border-bottom: 1px solid #ddd; padding-bottom: 12px; }
+  .media { height: 560px; background: #eee; display: grid; place-items: center; font-size: 40px; }
+  [role=button] { display: inline-block; cursor: pointer; margin: 8px; }
+</style>
+<script src="/shim.js"></script>
+</head><body>
+<script>
+  for (let i = 1; i <= 6; i++) document.write(`
+    <article data-post="${i}">
+      <div class="media">Post ${i}</div>
+      <div role="button"><svg aria-label="Like" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg></div>
+      <p>comment <span role="button"><svg aria-label="Like" width="12" height="12" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="gray"/></svg></span></p>
+    </article>`);
+</script>
+<script src="/content.js"></script>
+</body></html>
